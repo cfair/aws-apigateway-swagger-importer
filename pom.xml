@@ -6,14 +6,14 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-apigateway-swagger-importer</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <dependencies>
 
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-apigateway-sdk-java</artifactId>
-            <version>1.0.0</version>
+            <version>1.1.0</version>
         </dependency>
 
         <dependency>
@@ -68,6 +68,12 @@
             <groupId>io.swagger</groupId>
             <artifactId>swagger-core</artifactId>
             <version>1.5.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.raml</groupId>
+            <artifactId>raml-parser</artifactId>
+            <version>0.8.11</version>
         </dependency>
 
         <dependency>
@@ -134,7 +140,11 @@
         <directory>${basedir}/build/maven</directory>
         <sourceDirectory>${basedir}/src</sourceDirectory>
         <testSourceDirectory>${basedir}/tst</testSourceDirectory>
-        <!--<testResources>${basedir/tst/resources}</testResources>-->
+        <testResources>
+            <testResource>
+                <directory>${basedir}/tst/resources</directory>
+            </testResource>
+        </testResources>
         <outputDirectory>${basedir}/build/private/classes/library</outputDirectory>
         <testOutputDirectory>${basedir}/build/private/classes/tests</testOutputDirectory>
         <resources>
@@ -193,16 +203,14 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.amazonaws.service.apigateway.importer.ApiImporterMain</mainClass>
+                        </manifest>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
-    <properties>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.test.skip>true</maven.test.skip>
-    </properties>
-
 </project>
-

@@ -14,11 +14,14 @@
  */
 package com.amazonaws.service.apigateway.importer.config;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.service.apigateway.importer.ApiImporterMain;
+import com.amazonaws.service.apigateway.importer.RamlApiImporter;
 import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
 import com.amazonaws.service.apigateway.importer.impl.sdk.ApiGatewaySdkSwaggerApiImporter;
+import com.amazonaws.service.apigateway.importer.impl.sdk.ApiGatewaySdkRamlApiImporter;
 import com.amazonaws.services.apigateway.AmazonApiGateway;
 import com.amazonaws.services.apigateway.model.ApiGateway;
 import com.google.inject.AbstractModule;
@@ -30,6 +33,7 @@ import org.apache.commons.logging.LogFactory;
 
 public class ApiImporterModule extends AbstractModule {
     private static final Log LOG = LogFactory.getLog(ApiImporterMain.class);
+    private static final String USER_AGENT = "AmazonApiGatewaySwaggerImporter/1.0";
 
     private final AwsConfig config;
 
@@ -40,6 +44,7 @@ public class ApiImporterModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(SwaggerApiImporter.class).to(ApiGatewaySdkSwaggerApiImporter.class);
+        bind(RamlApiImporter.class).to(ApiGatewaySdkRamlApiImporter.class);
         bind(String.class).annotatedWith(Names.named("profile")).toInstance(config.getProfile());
         bind(String.class).annotatedWith(Names.named("region")).toInstance(config.getRegion());
     }
@@ -61,7 +66,8 @@ public class ApiImporterModule extends AbstractModule {
     @Provides
     ApiGateway provideAmazonApiGateway(AWSCredentialsProvider credsProvider,
                                        @Named("region") String region) {
-        return new AmazonApiGateway(getEndpoint(region)).with(credsProvider).getApiGateway();
+        ClientConfiguration clientConfig = new ClientConfiguration().withUserAgent(USER_AGENT);
+        return new AmazonApiGateway(getEndpoint(region)).with(credsProvider).with(clientConfig).getApiGateway();
     }
 
     private String getEndpoint(String region) {
