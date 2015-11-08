@@ -52,7 +52,7 @@ public class ApiImporterMain {
     private boolean cleanup = false;
 
     @Parameter(names = {"--profile", "-p"}, description = "AWS CLI profile to use")
-    private String profile = "default";
+    private String profile = "";
 
     @Parameter(names = "--help", help = true)
     private boolean help;
@@ -83,12 +83,6 @@ public class ApiImporterMain {
         }
 
         AwsConfig config = new AwsConfig(profile);
-        try {
-            config.load();
-        } catch (Throwable t) {
-            LOG.error("Could not load AWS configuration. Please run 'aws configure'");
-            System.exit(1);
-        }
 
         try {
             Injector injector = Guice.createInjector(new ApiImporterModule(config));

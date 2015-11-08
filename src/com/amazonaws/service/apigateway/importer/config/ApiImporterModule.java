@@ -16,6 +16,7 @@ package com.amazonaws.service.apigateway.importer.config;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.service.apigateway.importer.ApiImporterMain;
 import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
@@ -48,12 +49,18 @@ public class ApiImporterModule extends AbstractModule {
 
     @Provides
     AWSCredentialsProvider provideCredentialsProvider(@Named("profile") String profile) {
-        ProfileCredentialsProvider provider = new ProfileCredentialsProvider(profile);
+        AWSCredentialsProvider provider;
+        if (profile != null && !profile.isEmpty()) {
+            provider = new ProfileCredentialsProvider(profile);
+        } else {
+            provider = new DefaultAWSCredentialsProviderChain();
+        }
+
 
         try {
             provider.getCredentials();
         } catch (Throwable t) {
-            LOG.error("Could not load AWS configuration. Please run 'aws configure'");
+            LOG.error("Could not load AWS configuration. Please run 'aws configure'", t);
             throw t;
         }
 
