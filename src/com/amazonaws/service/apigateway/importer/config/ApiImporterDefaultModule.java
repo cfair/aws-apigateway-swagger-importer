@@ -14,10 +14,14 @@
  */
 package com.amazonaws.service.apigateway.importer.config;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.retry.PredefinedRetryPolicies;
+import com.amazonaws.retry.RetryPolicy;
+import com.amazonaws.retry.RetryUtils;
 import com.amazonaws.service.apigateway.importer.ApiImporterMain;
 import com.amazonaws.service.apigateway.importer.SwaggerApiImporter;
 import com.amazonaws.service.apigateway.importer.impl.sdk.ApiGatewaySdkSwaggerApiImporter;
@@ -29,14 +33,15 @@ import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import java.util.Random;
 
-public class ApiImporterModule extends AbstractModule {
+public class ApiImporterDefaultModule extends AbstractModule {
     private static final Log LOG = LogFactory.getLog(ApiImporterMain.class);
     private static final String USER_AGENT = "AmazonApiGatewaySwaggerImporter/1.0";
 
     private final AwsConfig config;
 
-    public ApiImporterModule(AwsConfig config) {
+    public ApiImporterDefaultModule(AwsConfig config) {
         this.config = config;
     }
 
@@ -68,13 +73,56 @@ public class ApiImporterModule extends AbstractModule {
     }
 
     @Provides
-    ApiGateway provideAmazonApiGateway(AWSCredentialsProvider credsProvider,
-                                       @Named("region") String region) {
-        ClientConfiguration clientConfig = new ClientConfiguration().withUserAgent(USER_AGENT);
+    protected ApiGateway provideAmazonApiGateway(AWSCredentialsProvider credsProvider,
+                                                 RetryPolicy.BackoffStrategy backoffStrategy,
+                                                 @Named("region") String region) {
+
+        final RetryPolicy retrypolicy = new RetryPolicy(PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION, backoffStrategy, 5, true);
+
+        final ClientConfiguration clientConfig = new ClientConfiguration().withUserAgent(USER_AGENT).withRetryPolicy(retrypolicy);
+
         return new AmazonApiGateway(getEndpoint(region)).with(credsProvider).with(clientConfig).getApiGateway();
     }
 
     private String getEndpoint(String region) {
         return String.format("https://apigateway.%s.amazonaws.com", region);
+    }
+
+    /**
+     * Override the default SDK exponential backoff implementation
+     *  See {@link PredefinedRetryPolicies#DEFAULT_BACKOFF_STRATEGY
+     */
+    @Provides
+    protected RetryPolicy.BackoffStrategy provideBackoffStrategy() {
+
+        // tune these parameters to handle throttling errors
+        final int maxBackoffInMilliseconds = 50 * 1000; // maximum exponential back-off time before retrying a request
+        final int throttlingScaleFactor = 800; // base sleep time for throttling exceptions
+        final int maxRetriesBeforeBackoff = 10; // log2(maxBackoffInMilliseconds/throttlingScaleFactor)
+
+        final int baseScaleFactor = 600; // base sleep time for general exceptions
+        final int throttlingScaleFactorRandomRange = throttlingScaleFactor / 4;
+
+        final Random random = new Random();
+
+        return (originalRequest, exception, retriesAttempted) -> {
+            if (retriesAttempted < 0) return 0;
+            if (retriesAttempted > maxRetriesBeforeBackoff) return maxBackoffInMilliseconds;
+
+            int scaleFactor;
+            if (exception instanceof AmazonServiceException
+                    && RetryUtils.isThrottlingException((AmazonServiceException) exception)) {
+                scaleFactor = throttlingScaleFactor + random.nextInt(throttlingScaleFactorRandomRange);
+            } else {
+                scaleFactor = baseScaleFactor;
+            }
+
+            long delay = (1L << retriesAttempted) * scaleFactor;
+            delay = Math.min(delay, maxBackoffInMilliseconds);
+
+            LOG.info("Client backing off for " + delay + "ms");
+
+            return delay;
+        };
     }
 }

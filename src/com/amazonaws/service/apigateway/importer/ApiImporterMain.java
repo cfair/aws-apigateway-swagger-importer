@@ -14,7 +14,7 @@
  */
 package com.amazonaws.service.apigateway.importer;
 
-import com.amazonaws.service.apigateway.importer.config.ApiImporterModule;
+import com.amazonaws.service.apigateway.importer.config.ApiImporterDefaultModule;
 import com.amazonaws.service.apigateway.importer.config.AwsConfig;
 import com.amazonaws.service.apigateway.importer.impl.ApiGatewaySwaggerFileImporter;
 import com.beust.jcommander.JCommander;
@@ -85,7 +85,7 @@ public class ApiImporterMain {
         AwsConfig config = new AwsConfig(profile);
 
         try {
-            Injector injector = Guice.createInjector(new ApiImporterModule(config));
+            Injector injector = Guice.createInjector(new ApiImporterDefaultModule(config));
 
             ApiGatewaySwaggerFileImporter importer = injector.getInstance(ApiGatewaySwaggerFileImporter.class);
 
